@@ -21,7 +21,7 @@ defmodule OffBroadwayEcto.Producer do
         [:broadway, :producer, :module]
       )
 
-    client = normalize_client(opts[:client]) |> IO.inspect()
+    client = normalize_client(opts[:client])
 
     {:producer,
      %{
