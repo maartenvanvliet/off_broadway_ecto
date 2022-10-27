@@ -104,7 +104,7 @@ defmodule OffBroadwayEctoTest do
     Broadway.start_link(
       Forwarder,
       build_broadway_opts(broadway_name, opts,
-        client: TestClient,
+        client: {TestClient, a: 1},
         # receive_interval: 1000,
         test_pid: self()
       )

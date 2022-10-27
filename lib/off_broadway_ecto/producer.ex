@@ -21,13 +21,15 @@ defmodule OffBroadwayEcto.Producer do
         [:broadway, :producer, :module]
       )
 
+    client = normalize_client(opts[:client]) |> IO.inspect()
+
     {:producer,
      %{
        demand: 0,
        max_demand: opts[:max_demand],
        receive_timer: nil,
        receive_interval: receive_interval,
-       client: {opts[:client], []},
+       client: client,
        ack_ref: client_opts[:ack_ref]
      }}
   end
@@ -139,5 +141,13 @@ defmodule OffBroadwayEcto.Producer do
 
   defp schedule_receive_messages(interval) do
     Process.send_after(self(), :receive_messages, interval)
+  end
+
+  defp normalize_client({_client, _opts} = client) do
+    client
+  end
+
+  defp normalize_client(client) when is_atom(client) do
+    {client, []}
   end
 end
