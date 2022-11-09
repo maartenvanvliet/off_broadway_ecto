@@ -61,11 +61,11 @@ defmodule OffBroadwayEcto.Producer do
   end
 
   defp format_error(%ValidationError{keys_path: [], message: message}) do
-    "invalid configuration given to SQSBroadway.prepare_for_start/2, " <> message
+    "invalid configuration given to OffBroadwayEcto.prepare_for_start/2, " <> message
   end
 
   defp format_error(%ValidationError{keys_path: keys_path, message: message}) do
-    "invalid configuration given to SQSBroadway.prepare_for_start/2 for key #{inspect(keys_path)}, " <>
+    "invalid configuration given to OffBroadwayEcto.prepare_for_start/2 for key #{inspect(keys_path)}, " <>
       message
   end
 
