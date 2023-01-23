@@ -23,6 +23,13 @@ defmodule OffBroadwayEcto.Producer do
 
     client = normalize_client(opts[:client])
 
+    listen_ref = if client_opts[:repo] do
+      name = Module.concat([client_opts[:ack_ref], Notifications])
+
+      Postgrex.Notifications.listen!(name, Macro.underscore(name))
+    end
+
+
     {:producer,
      %{
        demand: 0,
@@ -30,7 +37,8 @@ defmodule OffBroadwayEcto.Producer do
        receive_timer: nil,
        receive_interval: receive_interval,
        client: client,
-       ack_ref: client_opts[:ack_ref]
+       ack_ref: client_opts[:ack_ref],
+       notifier: listen_ref
      }}
   end
 
@@ -49,6 +57,8 @@ defmodule OffBroadwayEcto.Producer do
           client: opts[:client]
         })
 
+        name = Module.concat([ack_ref, Notifications])
+
         broadway_opts_with_defaults =
           put_in(
             broadway_opts,
@@ -56,7 +66,19 @@ defmodule OffBroadwayEcto.Producer do
             {producer_module, [{:ack_ref, ack_ref} | opts]}
           )
 
-        {[], broadway_opts_with_defaults}
+        children =
+          if opts[:repo] do
+            [
+              Postgrex.Notifications.child_spec(
+                opts[:repo].config() ++
+                  [name: name]
+              )
+            ]
+          else
+            []
+          end
+
+        {children, broadway_opts_with_defaults}
     end
   end
 
@@ -85,8 +107,8 @@ defmodule OffBroadwayEcto.Producer do
   end
 
   @impl true
-  def handle_info(_, state) do
-    {:noreply, [], state}
+  def handle_info({:notification, _notification_pid, _listen_ref, _channel, _message}, state) do
+    handle_receive_messages(%{state | receive_timer: nil})
   end
 
   defp handle_receive_messages(

@@ -33,10 +33,8 @@ defmodule OffBroadwayEctoTest do
       |> limit(^demand)
     end
 
-    def receive_messages(demand, opts) do
-      schema = OffBroadwayEcto.Image
-
-      {count, jobs} =
+    def receive_messages(demand, _opts) do
+      {_count, jobs} =
         OffBroadwayEcto.Image
         |> with_cte("available_jobs", as: ^available_jobs(demand))
         |> join(:inner, [job], a in "available_jobs", on: job.id == a.id)

@@ -22,6 +22,12 @@ defmodule OffBroadwayEcto.Options do
         Maximum number of records fetched from the database.
         """,
         default: 10
+      ],
+      repo: [
+        doc: """
+        Ecto Repo, used for notifications
+        """,
+        default: nil
       ]
     ]
   end
