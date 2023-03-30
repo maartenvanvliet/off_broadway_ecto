@@ -6,9 +6,17 @@ defmodule OffBroadwayEcto.Acknowledger do
     opts = :persistent_term.get(ack_ref)
     {client, opts} = normalize_client(opts[:client])
 
-    :ok = client.handle_failed(failed, opts)
+    if function_exported?(client, :handle_failed, 2) do
+      :ok = client.handle_failed(failed, opts)
+    else
+      :ok = client.handle_failed(failed)
+    end
 
-    :ok = client.handle_successful(successful, opts)
+    if function_exported?(client, :handle_successful, 2) do
+      :ok = client.handle_successful(successful, opts)
+    else
+      :ok = client.handle_successful(successful)
+    end
   end
 
   defp normalize_client({_client, _opts} = client) do
