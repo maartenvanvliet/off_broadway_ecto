@@ -44,7 +44,7 @@ defmodule OffBroadwayEctoTest do
       jobs
     end
 
-    def handle_failed(schemas) do
+    def handle_failed(schemas, _client_opts) do
       ids =
         schemas
         |> Enum.map(& &1.data.id)
@@ -58,7 +58,7 @@ defmodule OffBroadwayEctoTest do
       :ok
     end
 
-    def handle_successful(schemas) do
+    def handle_successful(schemas, _client_opts) do
       ids =
         schemas
         |> Enum.map(& &1.data.id)
