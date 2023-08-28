@@ -21,24 +21,14 @@ defmodule OffBroadwayEcto.Producer do
         [:broadway, :producer, :module]
       )
 
-    client = normalize_client(opts[:client])
-
-    listen_ref = if client_opts[:repo] do
-      name = Module.concat([client_opts[:ack_ref], Notifications])
-
-      Postgrex.Notifications.listen!(name, Macro.underscore(name))
-    end
-
-
     {:producer,
      %{
        demand: 0,
        max_demand: opts[:max_demand],
        receive_timer: nil,
        receive_interval: receive_interval,
-       client: client,
-       ack_ref: client_opts[:ack_ref],
-       notifier: listen_ref
+       client: opts[:client],
+       ack_ref: client_opts[:ack_ref]
      }}
   end
 
@@ -57,8 +47,6 @@ defmodule OffBroadwayEcto.Producer do
           client: opts[:client]
         })
 
-        name = Module.concat([ack_ref, Notifications])
-
         broadway_opts_with_defaults =
           put_in(
             broadway_opts,
@@ -66,19 +54,7 @@ defmodule OffBroadwayEcto.Producer do
             {producer_module, [{:ack_ref, ack_ref} | opts]}
           )
 
-        children =
-          if opts[:repo] do
-            [
-              Postgrex.Notifications.child_spec(
-                opts[:repo].config() ++
-                  [name: name]
-              )
-            ]
-          else
-            []
-          end
-
-        {children, broadway_opts_with_defaults}
+        {[], broadway_opts_with_defaults}
     end
   end
 
@@ -107,7 +83,7 @@ defmodule OffBroadwayEcto.Producer do
   end
 
   @impl true
-  def handle_info({:notification, _notification_pid, _listen_ref, _channel, _message}, state) do
+  def handle_info({:notification, _notification_pid, _channel, _message}, state) do
     handle_receive_messages(%{state | receive_timer: nil})
   end
 
@@ -163,13 +139,5 @@ defmodule OffBroadwayEcto.Producer do
 
   defp schedule_receive_messages(interval) do
     Process.send_after(self(), :receive_messages, interval)
-  end
-
-  defp normalize_client({_client, _opts} = client) do
-    client
-  end
-
-  defp normalize_client(client) when is_atom(client) do
-    {client, []}
   end
 end
