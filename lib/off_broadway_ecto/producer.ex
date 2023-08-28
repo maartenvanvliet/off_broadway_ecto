@@ -23,8 +23,7 @@ defmodule OffBroadwayEcto.Producer do
 
     {:producer,
      %{
-       demand: 0,
-       max_demand: opts[:max_demand],
+       demand: opts[:demand] || 0,
        receive_timer: nil,
        receive_interval: receive_interval,
        client: opts[:client],
@@ -88,10 +87,10 @@ defmodule OffBroadwayEcto.Producer do
   end
 
   defp handle_receive_messages(
-         %{receive_timer: nil, demand: demand, max_demand: max_demand} = state
+         %{receive_timer: nil, demand: demand} = state
        )
        when demand > 0 do
-    messages = receive_messages_from_ecto(state, min(max_demand, demand))
+    messages = receive_messages_from_ecto(state, demand)
     new_demand = demand - length(messages)
 
     receive_timer =
@@ -109,15 +108,15 @@ defmodule OffBroadwayEcto.Producer do
   end
 
   defp receive_messages_from_ecto(state, total_demand) do
-    %{client: {client, opts}} = state
-    metadata = %{name: get_in(opts, [:ack_ref]), demand: total_demand}
+    client = state[:client]
+    metadata = %{name: get_in(state, [:ack_ref]), demand: total_demand}
 
     :telemetry.span(
       [:off_broadway_ecto, :receive_messages],
       metadata,
       fn ->
         messages =
-          client.receive_messages(total_demand, opts)
+          client.receive_messages(total_demand, state)
           |> wrap_received_messages(state.ack_ref)
 
         {messages, Map.put(metadata, :messages, messages)}

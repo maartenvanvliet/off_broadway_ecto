@@ -17,17 +17,19 @@ defmodule OffBroadwayEcto.Options do
         messages.
         """
       ],
-      max_demand: [
+      client: [
+        required: true,
         doc: """
-        Maximum number of records fetched from the database.
+        A module that implements the `OffBroadwayEcto.Client`
+        behaviour. This module is responsible for fetching and acknowledging the
+        messages.
+        """
+      ],
+      demand: [
+        doc: """
+        Base number of records fetched from the database.
         """,
         default: 10
-      ],
-      repo: [
-        doc: """
-        Ecto Repo, used for notifications
-        """,
-        default: nil
       ]
     ]
   end
