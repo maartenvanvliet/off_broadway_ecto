@@ -21,24 +21,13 @@ defmodule OffBroadwayEcto.Producer do
         [:broadway, :producer, :module]
       )
 
-    client = normalize_client(opts[:client])
-
-    listen_ref = if client_opts[:repo] do
-      name = Module.concat([client_opts[:ack_ref], Notifications])
-
-      Postgrex.Notifications.listen!(name, Macro.underscore(name))
-    end
-
-
     {:producer,
      %{
-       demand: 0,
-       max_demand: opts[:max_demand],
+       demand: opts[:demand] || 0,
        receive_timer: nil,
        receive_interval: receive_interval,
-       client: client,
-       ack_ref: client_opts[:ack_ref],
-       notifier: listen_ref
+       client: opts[:client],
+       ack_ref: client_opts[:ack_ref]
      }}
   end
 
@@ -57,8 +46,6 @@ defmodule OffBroadwayEcto.Producer do
           client: opts[:client]
         })
 
-        name = Module.concat([ack_ref, Notifications])
-
         broadway_opts_with_defaults =
           put_in(
             broadway_opts,
@@ -66,19 +53,7 @@ defmodule OffBroadwayEcto.Producer do
             {producer_module, [{:ack_ref, ack_ref} | opts]}
           )
 
-        children =
-          if opts[:repo] do
-            [
-              Postgrex.Notifications.child_spec(
-                opts[:repo].config() ++
-                  [name: name]
-              )
-            ]
-          else
-            []
-          end
-
-        {children, broadway_opts_with_defaults}
+        {[], broadway_opts_with_defaults}
     end
   end
 
@@ -107,15 +82,15 @@ defmodule OffBroadwayEcto.Producer do
   end
 
   @impl true
-  def handle_info({:notification, _notification_pid, _listen_ref, _channel, _message}, state) do
+  def handle_info({:notification, _notification_pid, _channel, _message}, state) do
     handle_receive_messages(%{state | receive_timer: nil})
   end
 
   defp handle_receive_messages(
-         %{receive_timer: nil, demand: demand, max_demand: max_demand} = state
+         %{receive_timer: nil, demand: demand} = state
        )
        when demand > 0 do
-    messages = receive_messages_from_ecto(state, min(max_demand, demand))
+    messages = receive_messages_from_ecto(state, demand)
     new_demand = demand - length(messages)
 
     receive_timer =
@@ -133,15 +108,15 @@ defmodule OffBroadwayEcto.Producer do
   end
 
   defp receive_messages_from_ecto(state, total_demand) do
-    %{client: {client, opts}} = state
-    metadata = %{name: get_in(opts, [:ack_ref]), demand: total_demand}
+    client = state[:client]
+    metadata = %{name: get_in(state, [:ack_ref]), demand: total_demand}
 
     :telemetry.span(
       [:off_broadway_ecto, :receive_messages],
       metadata,
       fn ->
         messages =
-          client.receive_messages(total_demand, opts)
+          client.receive_messages(total_demand, state)
           |> wrap_received_messages(state.ack_ref)
 
         {messages, Map.put(metadata, :messages, messages)}
@@ -163,13 +138,5 @@ defmodule OffBroadwayEcto.Producer do
 
   defp schedule_receive_messages(interval) do
     Process.send_after(self(), :receive_messages, interval)
-  end
-
-  defp normalize_client({_client, _opts} = client) do
-    client
-  end
-
-  defp normalize_client(client) when is_atom(client) do
-    {client, []}
   end
 end
