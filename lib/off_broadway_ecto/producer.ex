@@ -14,6 +14,7 @@ defmodule OffBroadwayEcto.Producer do
   @impl true
   def init(opts) do
     receive_interval = opts[:receive_interval]
+    force_interval = opts[:force_interval]
 
     {_client, client_opts} =
       get_in(
@@ -26,6 +27,7 @@ defmodule OffBroadwayEcto.Producer do
        demand: opts[:demand] || 0,
        receive_timer: nil,
        receive_interval: receive_interval,
+       force_interval: force_interval,
        client: opts[:client],
        ack_ref: client_opts[:ack_ref]
      }}
@@ -87,17 +89,24 @@ defmodule OffBroadwayEcto.Producer do
   end
 
   defp handle_receive_messages(
-         %{receive_timer: nil, demand: demand} = state
+         %{receive_timer: nil, demand: demand, force_interval: force_interval} = state
        )
        when demand > 0 do
     messages = receive_messages_from_ecto(state, demand)
     new_demand = demand - length(messages)
 
+    interval =
+      if force_interval do
+        state.receive_interval
+      else
+        0
+      end
+
     receive_timer =
       case {messages, new_demand} do
         {[], _} -> schedule_receive_messages(state.receive_interval)
         {_, 0} -> nil
-        _ -> schedule_receive_messages(0)
+        _ -> schedule_receive_messages(interval)
       end
 
     {:noreply, messages, %{state | demand: new_demand, receive_timer: receive_timer}}
